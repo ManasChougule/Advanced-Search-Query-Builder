@@ -2,3 +2,49 @@
   text-align: center;
 }
 
+
+.appContainer {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  height: 100vh;
+  width: 100%;
+  position: relative;
+}
+
+.inputContainer {
+  position: absolute;
+  top: 10%; 
+  width: 80%; 
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+}
+
+#kqlerrormsg {
+  position: absolute;
+  left: 1rem; 
+  top: 50%;
+  transform: translateY(-50%);
+  height: 2rem;
+  width: 2rem;
+  pointer-events: none; 
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  padding-left: 3rem; 
+  box-shadow: 1px 2px 5px rgba(0, 0, 0, 0.2);
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  height: 3rem;
+  font-size: 1rem;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: #888;
+  font-style: italic;
+}
