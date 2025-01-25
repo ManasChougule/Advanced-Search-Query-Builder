@@ -5,38 +5,32 @@ import ListBox from './ListBox';
 function App() {
   const [searchingText, setSearchingText] = useState("");
   const [advancedSearchMode, setAdvancedSearchMode] = useState(true); // replaces showAdvancedDiv and buttonLabel
-  const [suggestions, setSuggestions] = useState([
-    "Saving Private Ryan (1998)",
-    "Dunkirk (2017)",
-    "1917 (2019)",
-    "Black Hawk Down (2001)",
-    "Apocalypse Now (1979)",
-    "Platoon (1986)",
-    "The Thin Red Line (1998)",
-    "Full Metal Jacket (1987)",
-    "Hacksaw Ridge (2016)",
-    "Fury (2014)",
-    "The Pianist (2002)",
-    "Inglourious Basterds (2009)",
-    "Schindler's List (1993)",
-    "Letters from Iwo Jima (2006)",
-    "The Hurt Locker (2008)",
-    "Enemy at the Gates (2001)",
-    "We Were Soldiers (2002)",
-    "Jarhead (2005)",
-    "A Bridge Too Far (1977)",
-    "Flags of Our Fathers (2006)"
-  ]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [allPossibleValues,setAllPossibleValues] = useState([]);
+  const [allPossibleFields, setAllPossibleFields] = useState([]); 
   const [showAdvSuggestions, setShowAdvSuggestions] = useState(true);
   const [tabOnSuggestion, setTabOnSuggestion] = useState(false); 
 
   const [queryComplete,setQueryComplete] = useState(true);
   const [selectedItemIndex, setSelectedItemIndex] = useState(0);
   const [showFirstuggestions, setShowFirstSuggestions] = useState(true);
+  const [Network, setNetwork] = useState(["STR"]);
+  const [isField, setIsField] = useState(true);
+  const [action,setAction] = useState("None");
+
+  const abortControllerRef = useRef(null); // to abort previous ongoing api calls
 
   const onInputTextChange = (e) => {
     setSearchingText(e.target.value);
   }
+
+  const handleButtonToggle = () => {
+    if (advancedSearchMode){
+      if(isField){
+        fetchSuggestions().then();
+      }
+    }
+};
 
   const handleKeyDown = (event) => {
     if (event.key === 'ArrowDown') {
@@ -49,6 +43,95 @@ function App() {
       );
     }
   };
+
+  function checkTrueFalse(input) {
+    const trueSubstrings = ["t", "tr", "tru", "true"];
+    const falseSubstrings = ["f", "fa", "fal", "fals", "false"];
+    const lowerInput = input.toLowerCase();
+    if (trueSubstrings.includes(lowerInput)) {
+        return "true";
+    } else if (falseSubstrings.includes(lowerInput)) {
+        return "false";
+    } else {
+        return null; 
+    }
+  }
+
+  const fetchSuggestions = async (text, prefix_value="") => {
+    text = text ? text.trim() : "";
+      
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
+
+    try {
+      let data;
+      if(text !== "Order"){
+        const response = await fetch(process.env.REACT_APP_SUGGESTION_API_URL + 'getsuggestions' , {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ "searchText": text, "is_field": isField,
+              "network_locations": Network,"prefix_value":prefix_value }),
+            signal
+        });
+        data = await response.json();
+      }else{
+        data = {"data":["Ascending", "Descending"]}
+        data["data"] = data["data"].filter((suggestion)=>suggestion.toLowerCase().includes(prefix_value.toLowerCase()));
+      }
+        if (data["data"] !== 'no output') {
+            if(text==="isConverted" && data["data"].length===0){
+                let flag = checkTrueFalse(prefix_value);
+                if(flag !== null){
+                    data["data"]=[flag];
+                    setSuggestions(data["data"]) 
+                }
+            }else{
+                setSuggestions(data["data"]) 
+            }
+          if(allPossibleFields.length===0){
+            setAllPossibleFields([...data["data"], "Order"])
+          }else if(!isField ){
+            const allIntegers = data["data"].length > 0 && data["data"].every(item => {
+                const trimmedItem = item.trim();
+                const parsed = Number(trimmedItem);
+                return Number.isInteger(parsed) && String(parsed) === trimmedItem && !isNaN(parsed);
+            });
+
+            if (allIntegers) {
+            const integerList = data["data"].map(item => parseInt(item, 10));
+                const formatSize = (size) => {
+                const units = ["bytes", "KB", "MB", "GB", "TB"];
+                let unitIndex = 0;
+                while (size >= 1024 && unitIndex < units.length - 1) {
+                  size /= 1024;
+                  unitIndex++;
+                }
+                return `${size.toFixed(2)} ${units[unitIndex]}`;
+              };
+              const formattedSizes = integerList.map(size => formatSize(size));
+              setAllPossibleValues(['1.00 KB', '1.00 MB', '1.00 GB', '1.00 TB'])
+            }else{
+                setAllPossibleValues(data["data"])
+            }
+            setAction("filter");
+          }
+        }
+    } catch (error) { 
+        if (error.name !== 'AbortError') {
+            console.error('Error fetching suggestions:', error);
+        } 
+    }
+  };
+
+  useEffect(()=>{
+    handleButtonToggle();
+  },[])
 
   return (
     <div className="App">

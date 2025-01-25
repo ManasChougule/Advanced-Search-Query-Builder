@@ -20,8 +20,8 @@
   }
   
   .listBoxItem.selected {
-    background-color: #007bff; /* Blue background for selected item */
-    color: white; /* White text on selected item */
+    background-color: #007bff; 
+    color: black; 
   }
 
   .listBoxItem:hover {
