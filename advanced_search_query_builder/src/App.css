@@ -48,3 +48,12 @@
   color: #888;
   font-style: italic;
 }
+
+
+.toggleButton {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
