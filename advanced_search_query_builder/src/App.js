@@ -28,6 +28,7 @@ function App() {
 
   const [cursorPosition, setCursorPosition]=useState(null);
   const [subStringBasedOnCursorPosition,setSubStringBasedOnCursorPosition]=useState("");
+  const [kqlTitle, setKqlTitle] = useState("");
   const [stringUptoBreakingPointIndex , setStringUptoBreakingPointIndex] = useState("");
   const [breakingPointIndex,setBreakingPointIndex] = useState(-1);
   const [breakingPointOnEntireQuery,setBreakingPointOnEntireQuery] = useState(-1);
@@ -37,6 +38,9 @@ function App() {
   const [change,setChange]=useState(false);
   const [tabOnSuggestion, setTabOnSuggestion] = useState(false); 
 
+  const [clickOnSuggestion, setClickOnSuggestion] = useState(false);
+
+  const inputRef = useRef(null); 
   const abortControllerRef = useRef(null); // to abort previous ongoing api calls
 
   const onInputTextChange = (e) => {
@@ -49,7 +53,102 @@ function App() {
         fetchSuggestions().then();
       }
     }
-};
+  };
+
+  const  replaceWordAtCursor = (prevSearchText, cursorPosition, selectedSuggestion)=>{
+    let words = prevSearchText.trim().match(/"[^"]*$|"[^"]*"|\s+|\S+/g);
+    let currentCharPos = 0;
+    let wordEndPos=0;
+    for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+
+        if(word.trim().length!==0){
+            wordEndPos = currentCharPos + word.length;
+            if (cursorPosition >= currentCharPos && cursorPosition <= wordEndPos) {
+                let isFieldSelected = allPossibleFields.includes(selectedSuggestion);
+                if(isValue && !isFieldSelected){ selectedSuggestion='"'+selectedSuggestion+'"'; }
+                
+                words[i] = selectedSuggestion;
+                const updatedText = words.join('')+' ';
+                const newCursorPosition = currentCharPos + selectedSuggestion.length+1;
+                return { updatedText, newCursorPosition };    
+            }else{
+                if(cursorPosition<currentCharPos || cursorPosition>searchingText.trim().length){
+                let isFieldSelected = allPossibleFields.includes(selectedSuggestion);
+                if(isValue && !isFieldSelected){ selectedSuggestion='"'+selectedSuggestion+'"'; }
+                let updatedText = searchingText.substring(0,cursorPosition).trim()+' ';
+                updatedText+=selectedSuggestion+' ';
+                const newCursorPosition = updatedText.length;
+                updatedText+=searchingText.substring(cursorPosition).trim();
+                return { updatedText, newCursorPosition };    
+                }
+            }
+        }else{ currentCharPos = wordEndPos + word.length; }
+    }
+    return { updatedText: prevSearchText, newCursorPosition: cursorPosition };
+  }
+
+  const handleTabOrClickOnSuggestion = (index,type) => {
+    const length = searchingText.length;
+    const selectedSuggestion = suggestions[index];
+    let flag = false;
+    if (selectedSuggestion !== undefined && length === cursorPosition && !isValue) {
+      setSuggestions([]);
+      if(searchingText.startsWith(' ')){
+        flag = true;
+      }
+      if(type==='click'){setClickOnSuggestion(true);}
+      setSearchingText((prevSearchText) => {
+        let words = prevSearchText.trim().split(' ');
+        if (selectedSuggestion.toLowerCase().includes(words[words.length - 1].toLowerCase())) { words.pop(); }
+        if(quotesCount===1){ words.pop(); }
+        let lastPart;
+        if(isValue){ lastPart=' "' + selectedSuggestion + '" '}
+        else{ lastPart=' ' + selectedSuggestion + ' '; }
+
+        let updatedText= words.join(' ') + lastPart;
+        let newCursorPosition = updatedText.length;
+        if(flag){
+            newCursorPosition-=1;
+        }
+        else if(updatedText.startsWith(' ')){
+            updatedText=updatedText.trimStart();
+            newCursorPosition-=1;
+        }
+        console.log('scp1')
+        setCursorPosition(newCursorPosition);
+        inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+        inputRef.current.focus();
+        setTimeout(() => {
+            if(newCursorPosition===updatedText.length){
+                inputRef.current.scrollLeft = inputRef.current.scrollWidth;  
+            }
+        }, 0);
+        setSubStringBasedOnCursorPosition(updatedText.substring(0,newCursorPosition));
+        return updatedText;
+      });
+    } else if (selectedSuggestion !== undefined && (length > cursorPosition || (length===cursorPosition && isValue))) {
+      setSuggestions([]);
+      if(type==='click'){setClickOnSuggestion(true);}
+      setSearchingText((prevSearchText) => {
+        const { updatedText, newCursorPosition } = replaceWordAtCursor(prevSearchText, cursorPosition, selectedSuggestion);
+        if (inputRef.current) {
+          setTimeout(() => {
+            inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
+            console.log('scp2')
+            setCursorPosition(newCursorPosition);
+            inputRef.current.focus();
+            if(newCursorPosition===updatedText.length){
+                inputRef.current.scrollLeft = inputRef.current.scrollWidth;
+            }
+            setSubStringBasedOnCursorPosition(updatedText.substring(0,newCursorPosition));
+          },500); 
+        }
+        return updatedText;
+      });
+    }
+
+  };
 
   const countQuotes = (text)=>{
     let totalDoubleQuotes=0;
@@ -248,15 +347,75 @@ function App() {
     }
   }
 
+  const handleUpdateQueryBuilderComplete = ()=>{
+    let output = breakString(searchingText); 
+    let result = output.result;
+    let indicesArray = output.indicesArray;
+    let length = result.length;
+    let invalidIndex=-1;
+    let updatedQueryBuilder=[];
+    let query=[];
+    for (let i=0; i<length; i++){
+        let ans;
+        if(i%4===0){ ans = checkValidText(result[i],indicesArray[i]) }
+        else if(i%4===2){ ans = checkValidText(result[i],indicesArray[i]);}
+        else if(i%4===1){ ans = checkValidOperator(result[i],indicesArray[i],'binary')}
+        else{ ans = checkValidOperator(result[i],indicesArray[i],'logical'); }
+
+        if(ans.isValid){
+            query.push(result[i]);
+            if(ans.invalidIndex!==-1){ invalidIndex=ans.invalidIndex; break; }
+        }else{
+            invalidIndex=ans.invalidIndex;
+            setTimeout(()=>{setSuggestions([])},[0])
+            break;
+        }
+        if(i%4===3){
+            updatedQueryBuilder.push(query);
+            query=[];
+        }
+    }
+
+    if(query.length!==0){ updatedQueryBuilder.push(query); }
+    if(updatedQueryBuilder.length===0){ updatedQueryBuilder=[[]]; }
+    setQueryBuilderComplete(updatedQueryBuilder);
+    let final_query = updatedQueryBuilder ? updatedQueryBuilder[updatedQueryBuilder.length-1]?  updatedQueryBuilder[updatedQueryBuilder.length-1] : [] : [];
+    if(final_query){
+        if(final_query[2]){
+            let last_query_value = final_query.pop();
+            last_query_value = last_query_value.replace(/^"|"$/g, ''); 
+            final_query.push(last_query_value);
+            setEndValue(last_query_value);
+        }else{
+            setEndValue("");
+        }
+    }
+    setEndQuery(final_query)
+    if(invalidIndex!==-1){
+        setBreakingPointIndex(invalidIndex);
+        setStringUptoBreakingPointIndex(searchingText.substring(0,invalidIndex));
+        setQueryComplete(false);
+    }else{ setQueryComplete(updatedQueryBuilder[updatedQueryBuilder.length-1].length===3); }
+    setBreakingPointOnEntireQuery(invalidIndex);
+  }
+
   const handleKeyDown = (event) => {
-    if (event.key === 'ArrowDown') {
-        setSelectedItemIndex((prevIndex) =>
-          prevIndex < suggestions.length - 1 ? prevIndex + 1 : 0
-        );
-    } else if (event.key === 'ArrowUp') {
+    if (event.keyCode === 40) { //  event.key === 'ArrowDown'
+      console.log("ArrowDown")
+      event.preventDefault();
+      setSelectedItemIndex((prevIndex) =>
+        prevIndex < suggestions.length - 1 ? prevIndex + 1 : 0
+      );
+    } else if (event.keyCode === 38) { // event.key === 'ArrowUp'
+      console.log("ArrowUp")
+      event.preventDefault();
       setSelectedItemIndex((prevIndex) =>
         prevIndex > 0 ? prevIndex - 1 : suggestions.length - 1
       );
+    } else if (event.keyCode === 9 && selectedItemIndex !== -1) {
+      console.log("tab clicked")
+      event.preventDefault();
+      setTabOnSuggestion(true);
     }
   };
 
@@ -274,6 +433,7 @@ function App() {
   }
 
   const fetchSuggestions = async (text, prefix_value="") => {
+    console.log("fetchSuggestions called")
     text = text ? text.trim() : "";
       
     if (abortControllerRef.current) {
@@ -345,7 +505,6 @@ function App() {
     }
   };
 
-
   const checkCursorInMiddleOfText = ()=>{
     let arr1 = searchingText.split(' ');
     let arr2 = subStringBasedOnCursorPosition.split(' ');
@@ -369,6 +528,7 @@ function App() {
     if((!afterCursorTextExists && tabOnSuggestion) || !tabOnSuggestion){
         const newCursorPosition = e.target.selectionStart; 
         const subString = searchingText.substring(0, newCursorPosition); 
+        console.log('scp3');
         setCursorPosition(newCursorPosition);
         setSubStringBasedOnCursorPosition(subString);
     }
@@ -379,6 +539,7 @@ function App() {
     setShowAdvSuggestions(true)
     const cursorPositionOnClick = e.target.selectionStart; 
     const subString = searchingText.substring(0, cursorPositionOnClick); 
+    console.log('scp4')
     setCursorPosition(cursorPositionOnClick)
     setSubStringBasedOnCursorPosition(subString);
   }
@@ -397,8 +558,57 @@ function App() {
             if(cursorPosition!==0){ setSuggestions([]); }
         }
     }
-    if(cursorPosition===0){ setSuggestions(allPossibleFields); }
+    if(cursorPosition===0){ console.log('11'); setSuggestions(allPossibleFields); }
   },[cursorPosition])
+
+  useEffect(()=>{
+    if (inputRef.current) {
+    let afterCursorTextExists = checkCursorInMiddleOfText(); 
+    if(!afterCursorTextExists && (tabOnSuggestion || clickOnSuggestion)){ inputRef.current.focus(); }
+    if(!tabOnSuggestion && !clickOnSuggestion ){ inputRef.current.focus(); }
+    if(tabOnSuggestion || clickOnSuggestion){setTabOrClickOnSuggestion(true); } else{ setTabOrClickOnSuggestion(false); }
+
+    handleUpdateQueryBuilderComplete();
+
+    let newCursorPosition;
+    if(breakingPointIndex===-1){ 
+        newCursorPosition = searchingText.length;
+        if(!afterCursorTextExists){
+          console.log('scp5')
+            setCursorPosition(newCursorPosition)
+            setSubStringBasedOnCursorPosition(searchingText.substring(0, newCursorPosition));
+        }
+    }else{
+        newCursorPosition = subStringBasedOnCursorPosition.length;
+        setBreakingPointIndex(-1);
+        if(afterCursorTextExists){
+          console.log('scp6')
+            setCursorPosition(newCursorPosition)
+            setSubStringBasedOnCursorPosition(subStringBasedOnCursorPosition.substring(0, newCursorPosition));
+        }
+    }
+
+    setClickOnSuggestion(false);
+    if(searchingText.trim().length===0){ setQueryComplete(true) } }
+  },[searchingText])
+
+  useEffect(()=>{
+    let title="";
+    let isQueryComplete = queryComplete;
+    if(breakingPointOnEntireQuery!==-1){ isQueryComplete = false; }
+    if(breakingPointOnEntireQuery===-1){ setBreakingPointOnEntireQuery(searchingText.length) }
+    if(!isQueryComplete){
+        if(breakingPointOnEntireQuery>8){ title+='...'; }
+        if(breakingPointOnEntireQuery===-1){ title+=searchingText.substring(searchingText.length-8) + '^';
+        }else{ title+=searchingText.substring(breakingPointOnEntireQuery-8,breakingPointOnEntireQuery) +'^'+searchingText.substring(breakingPointOnEntireQuery+1); }
+    }
+    console.log("title==",title)
+    setKqlTitle(title);
+  },[queryComplete,breakingPointOnEntireQuery])
+
+  useEffect(()=>{
+    if(tabOnSuggestion){ handleTabOrClickOnSuggestion(selectedItemIndex,'tab'); }
+  },[tabOnSuggestion])
 
   useEffect(()=>{
     if(showAdvSuggestions && subStringBasedOnCursorPosition && queryBuilder[0]){
@@ -415,7 +625,7 @@ function App() {
     let addSpace=false;
     if(totalDoubleQuotes===1 && endsWithWhiteSpace){ endsWithWhiteSpace=false; addSpace=true; }
     let changeIt=false;
-    if (last_query_length==0 || (length==0 && endsWithWhiteSpace )){ setSuggestions(allPossibleFields); }
+    if (last_query_length==0 || (length==0 && endsWithWhiteSpace )){ console.log('22');setSuggestions(allPossibleFields); }
     else if(length==0 && !endsWithWhiteSpace){
         updatedSuggestions = LOGICAL_OPERATORS.filter((suggestion)=>suggestion.includes(last_element));
         if(!updatedSuggestions){ updatedSuggestions=LOGICAL_OPERATORS; }
@@ -471,7 +681,7 @@ function App() {
             changeIt=true;
             fetchSuggestions(last_query[0],last_element);
         }
-    }else if(length==4 && endsWithWhiteSpace){ setSuggestions(allPossibleFields);
+    }else if(length==4 && endsWithWhiteSpace){ console.log('33');setSuggestions(allPossibleFields);
     }else if(length==4){
         updatedSuggestions = LOGICAL_OPERATORS.filter((suggestion)=>suggestion.includes(last_element));
         if(updatedSuggestions.length===0){ updatedSuggestions=LOGICAL_OPERATORS; }
@@ -483,7 +693,6 @@ function App() {
     else{ setIsValue(false); } setChange(changeIt);}
   },[queryBuilder])
 
-
   return (
     <div className="App">
       <div className="toggleButton">
@@ -493,22 +702,25 @@ function App() {
         advancedSearchMode ? 
         <div className="appContainer">
           <div className="inputContainer">
-            <div id="kqlerrormsg" title="KQL Error">
+            <div id="kqlerrormsg" title={kqlTitle}>
               {queryComplete ? <img className="icon kqlgood" src="https://alm-report.corp.knorr-bremse.com/s/xp7u7d/9120004/znomsy/1.0/_/images/icons/accept.png" alt="accept"/>:
               <img class="icon kqlerror" src='https://alm-report.corp.knorr-bremse.com/s/xp7u7d/9120004/znomsy/1.0/_/images/icons/error.png' alt='error'/>}
             </div>
             <input
               className="searchInput"
+              value={searchingText}
+              ref={inputRef}
               placeholder="Type your query here..."
               onKeyDown={handleKeyDown} 
               onChange={onInputTextChange}
               onClick={onInputBoxClick} 
               onKeyUp={updateCursorPosition}
+              spellcheck="false" 
             />
             {(showAdvSuggestions && (showFirstuggestions || searchingText !== "")) ? (
               <ListBox className="listBox" data={suggestions} selectedItemIndex={selectedItemIndex} 
               selectedField={suggestions[selectedItemIndex]}  
-              // onItemClick={handleTabOrClickOnSuggestion}
+              onItemClick={handleTabOrClickOnSuggestion}
               ></ListBox>
             ):null}
     
