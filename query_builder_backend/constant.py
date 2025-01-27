@@ -1,0 +1,23 @@
+MEASUREMENTS_CACHE_FIELDS = [
+    "sourceFiles.fileName",
+    "sourceFiles.networkLocation",
+    "sourceFiles.filePath",
+    "sourceFiles.sourceFileOwner",
+    "hashtags",
+    "externalLinks",
+    "sourceFileRecordingTime",
+    "sourceFileExistance",
+    "sourceFileType",
+    "sourceFileSize",
+    "sourceFileCopyingStatus",
+    "convertedFiles.fileName",
+    "convertedFiles.fileType",
+    "convertedFiles.filePath",
+    "convertedFiles.fileProcessingStatus",
+    "VersionSpecificFiles.fileName",
+    "VersionSpecificFiles.fileType",
+    "VersionSpecificFiles.filePath",
+    "VersionSpecificFiles.fileProcessingStatus",
+    "isConverted",
+    "sourceFileAttributeStatus"
+]
