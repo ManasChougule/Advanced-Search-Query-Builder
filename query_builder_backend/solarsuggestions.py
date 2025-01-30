@@ -15,6 +15,8 @@ class SolarSuggestions:
             current_time_string  = currentTime.strftime("%Y-%m-%dT%H:%M:%SZ")
             return [current_time_string]
         
+        selected_networks = ["STR","BUD","BDX"]
+        
         for network in selected_networks:
             path = (
                 f"/solr/Knooble/select?"
@@ -66,26 +68,3 @@ class SolarSuggestions:
                         return field_data
         field_data = [value for value in field_data if isinstance(value, str)]
         return field_data
-    
-    # def get_hashtag_Suggestions(self, selected_networks):
-    #     conn = http.client.HTTPConnection("localhost", 8983)
-    #     total_hashtags = []
-    #     for network in selected_networks:
-    #         path = f"/solr/Knooble/select?fl=hashtags&indent=on&q=network_location:{network}&wt=json"
-    #         conn.request("GET", path)
-    #         response = conn.getresponse()
-    #         if response.status == 200:
-    #             cache_last_update_data = json.loads(response.read().decode())
-    #             values = cache_last_update_data["response"]["docs"][0]["hashtags"]
-    #             total_hashtags.extend(values)
-    #     return total_hashtags
-
-    # def get_locations_wise_hashtags(self):
-    #     conn = http.client.HTTPConnection("localhost", 8983)
-    #     path = f"/solr/Knooble/select?fl=hashtags,network_location&indent=on&q=network_location:*&wt=json"
-    #     conn.request("GET", path)
-    #     response = conn.getresponse()
-    #     if response.status == 200:
-    #         cache_last_update_data = json.loads(response.read().decode())
-    #         values = cache_last_update_data["response"]["docs"]
-    #         return values

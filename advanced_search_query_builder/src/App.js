@@ -7,6 +7,7 @@ import { LOGICAL_OPERATORS } from './constants';
 
 function App() {
   const [searchingText, setSearchingText] = useState("");
+  const prevSearchTextRef = useRef();
   const [advancedSearchMode, setAdvancedSearchMode] = useState(true); // replaces showAdvancedDiv and buttonLabel
   const [suggestions, setSuggestions] = useState([]);
   const [queryBuilder,setQueryBuilder]=useState([[]]);
@@ -115,7 +116,6 @@ function App() {
             updatedText=updatedText.trimStart();
             newCursorPosition-=1;
         }
-        console.log('scp1')
         setCursorPosition(newCursorPosition);
         inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
         inputRef.current.focus();
@@ -135,7 +135,6 @@ function App() {
         if (inputRef.current) {
           setTimeout(() => {
             inputRef.current.setSelectionRange(newCursorPosition, newCursorPosition);
-            console.log('scp2')
             setCursorPosition(newCursorPosition);
             inputRef.current.focus();
             if(newCursorPosition===updatedText.length){
@@ -401,19 +400,16 @@ function App() {
 
   const handleKeyDown = (event) => {
     if (event.keyCode === 40) { //  event.key === 'ArrowDown'
-      console.log("ArrowDown")
       event.preventDefault();
       setSelectedItemIndex((prevIndex) =>
         prevIndex < suggestions.length - 1 ? prevIndex + 1 : 0
       );
     } else if (event.keyCode === 38) { // event.key === 'ArrowUp'
-      console.log("ArrowUp")
       event.preventDefault();
       setSelectedItemIndex((prevIndex) =>
         prevIndex > 0 ? prevIndex - 1 : suggestions.length - 1
       );
     } else if (event.keyCode === 9 && selectedItemIndex !== -1) {
-      console.log("tab clicked")
       event.preventDefault();
       setTabOnSuggestion(true);
     }
@@ -433,7 +429,6 @@ function App() {
   }
 
   const fetchSuggestions = async (text, prefix_value="") => {
-    console.log("fetchSuggestions called")
     text = text ? text.trim() : "";
       
     if (abortControllerRef.current) {
@@ -528,7 +523,6 @@ function App() {
     if((!afterCursorTextExists && tabOnSuggestion) || !tabOnSuggestion){
         const newCursorPosition = e.target.selectionStart; 
         const subString = searchingText.substring(0, newCursorPosition); 
-        console.log('scp3');
         setCursorPosition(newCursorPosition);
         setSubStringBasedOnCursorPosition(subString);
     }
@@ -539,7 +533,6 @@ function App() {
     setShowAdvSuggestions(true)
     const cursorPositionOnClick = e.target.selectionStart; 
     const subString = searchingText.substring(0, cursorPositionOnClick); 
-    console.log('scp4')
     setCursorPosition(cursorPositionOnClick)
     setSubStringBasedOnCursorPosition(subString);
   }
@@ -558,7 +551,7 @@ function App() {
             if(cursorPosition!==0){ setSuggestions([]); }
         }
     }
-    if(cursorPosition===0){ console.log('11'); setSuggestions(allPossibleFields); }
+    if(cursorPosition===0){ setSuggestions(allPossibleFields); }
   },[cursorPosition])
 
   useEffect(()=>{
@@ -574,7 +567,6 @@ function App() {
     if(breakingPointIndex===-1){ 
         newCursorPosition = searchingText.length;
         if(!afterCursorTextExists){
-          console.log('scp5')
             setCursorPosition(newCursorPosition)
             setSubStringBasedOnCursorPosition(searchingText.substring(0, newCursorPosition));
         }
@@ -582,14 +574,24 @@ function App() {
         newCursorPosition = subStringBasedOnCursorPosition.length;
         setBreakingPointIndex(-1);
         if(afterCursorTextExists){
-          console.log('scp6')
             setCursorPosition(newCursorPosition)
             setSubStringBasedOnCursorPosition(subStringBasedOnCursorPosition.substring(0, newCursorPosition));
         }
     }
 
     setClickOnSuggestion(false);
-    if(searchingText.trim().length===0){ setQueryComplete(true) } }
+      if(searchingText.trim().length===0){ 
+        setQueryComplete(true)
+        if(prevSearchTextRef.current && prevSearchTextRef.current.trim().length!=0){ // where user removes searching text , abort current call
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+          }
+        }
+      } 
+    }
+
+    prevSearchTextRef.current = inputRef.current.value;
+
   },[searchingText])
 
   useEffect(()=>{
@@ -602,7 +604,6 @@ function App() {
         if(breakingPointOnEntireQuery===-1){ title+=searchingText.substring(searchingText.length-8) + '^';
         }else{ title+=searchingText.substring(breakingPointOnEntireQuery-8,breakingPointOnEntireQuery) +'^'+searchingText.substring(breakingPointOnEntireQuery+1); }
     }
-    console.log("title==",title)
     setKqlTitle(title);
   },[queryComplete,breakingPointOnEntireQuery])
 
@@ -625,7 +626,7 @@ function App() {
     let addSpace=false;
     if(totalDoubleQuotes===1 && endsWithWhiteSpace){ endsWithWhiteSpace=false; addSpace=true; }
     let changeIt=false;
-    if (last_query_length==0 || (length==0 && endsWithWhiteSpace )){ console.log('22');setSuggestions(allPossibleFields); }
+    if (last_query_length==0 || (length==0 && endsWithWhiteSpace )){setSuggestions(allPossibleFields); }
     else if(length==0 && !endsWithWhiteSpace){
         updatedSuggestions = LOGICAL_OPERATORS.filter((suggestion)=>suggestion.includes(last_element));
         if(!updatedSuggestions){ updatedSuggestions=LOGICAL_OPERATORS; }
@@ -681,7 +682,7 @@ function App() {
             changeIt=true;
             fetchSuggestions(last_query[0],last_element);
         }
-    }else if(length==4 && endsWithWhiteSpace){ console.log('33');setSuggestions(allPossibleFields);
+    }else if(length==4 && endsWithWhiteSpace){setSuggestions(allPossibleFields);
     }else if(length==4){
         updatedSuggestions = LOGICAL_OPERATORS.filter((suggestion)=>suggestion.includes(last_element));
         if(updatedSuggestions.length===0){ updatedSuggestions=LOGICAL_OPERATORS; }

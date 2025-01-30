@@ -20,13 +20,12 @@
   }
   
   .listBoxItem.selected {
-    background-color: #82beff; 
+    background-color: #b4e0f3;
     color: black; 
   }
 
   .listBoxItem:hover {
-    /* background-color: #d3d3d3; */
-    background-color: #b4e0f3;
+    background-color: #d3d3d3;
   }
   
   .listBox::-webkit-scrollbar {

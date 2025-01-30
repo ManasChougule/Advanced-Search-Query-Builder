@@ -9,12 +9,16 @@ This project implements an advanced query-building interface inspired by JIRA, e
 - **Keyboard Shortcuts**: Navigate options with the "up-down arrow button," auto-complete with "TAB Key"
 - **Real-Time Feedback**: Updates suggestions in real-time as queries are typed.
 - **Query Composition**: Supports intuitive query input with `field`, `condition`, and `value` syntax.
-- **Custom Query Syntax**: Use a highly customizable syntax similar to JIRA Query Language (JQL), allowing you to create complex queries with fields, operators, values, and keywords.
+- **Custom Query Syntax**: Use a flexible and customizable syntax similar to JIRA Query Language (JQL), allowing you to create highly complex queries with fields, operators, values, and keywords.
 - **Field-Specific Filtering**: Query based on various fields like status, assignee, project, labels, priority, and more.
 - **Logical Operators**: Combine conditions using logical operators like AND, OR, and NOT.
 - **Sorting and Ordering**: Specify sorting order using the `ORDER BY` clause.
 - **Keyword Search**: Use keywords like `==`, `!=`, `HAS`, `HASNOT`, `STARTSWITH`, `ENDWITH` etc. for flexible filtering.
 - **Subqueries**: Embed subqueries for nested condition handling.
+- **Backend Integration**: 
+   - **Solr Querying**: The backend integrates with Solr to fetch field values dynamically, allowing for fast and scalable search results.
+   - **Field and Value Retrieval**: For each field, the backend queries Solr to return a list of available values
+   - **Real-Time Data Fetching**: As the user types, the backend dynamically processes input and fetches updated field values from Solr.
 
 ## Usage Instructions
 
