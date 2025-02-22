@@ -1,5 +1,7 @@
 # Advanced Search Query Builder
 
+![Project Demo](https://raw.githubusercontent.com/ManasChougule/Advanced-Search-Query-Builder/master/Advanced_Search_Query_Builder.gif)
+
 This project implements an advanced query-building interface inspired by JIRA, enabling seamless construction of complex search conditions. The system dynamically offers suggestions via dropdowns based on user inputs and updates suggestions in real-time as the user types. It features dynamic dropdown suggestions, keyboard navigation, real-time input processing to enhance search precision and efficiency.
 
 ## Features
